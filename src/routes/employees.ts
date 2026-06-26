@@ -5,7 +5,6 @@ import { requireAuth } from '../middleware/requireAuth'
 const router = Router()
 router.use(requireAuth)
 
-// GET /employees — liste les agents de la company
 router.get('/', async (req: Request, res: Response) => {
   try {
     const employees = await prisma.employee.findMany({
@@ -18,7 +17,6 @@ router.get('/', async (req: Request, res: Response) => {
   }
 })
 
-// POST /employees — ajouter un agent
 router.post('/', async (req: Request, res: Response) => {
   try {
     const { name, phone, contractHours } = req.body
@@ -43,13 +41,13 @@ router.post('/', async (req: Request, res: Response) => {
   }
 })
 
-// PUT /employees/:id — modifier un agent
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { name, phone, contractHours } = req.body
+    const id = String(req.params.id)
 
     const existing = await prisma.employee.findFirst({
-      where: { id: req.params.id, companyId: req.auth!.companyId },
+      where: { id, companyId: req.auth!.companyId },
     })
 
     if (!existing) {
@@ -58,7 +56,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 
     const employee = await prisma.employee.update({
-      where: { id: req.params.id },
+      where: { id },
       data: { name, phone, contractHours },
     })
 
@@ -68,11 +66,12 @@ router.put('/:id', async (req: Request, res: Response) => {
   }
 })
 
-// DELETE /employees/:id
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
+    const id = String(req.params.id)
+
     const existing = await prisma.employee.findFirst({
-      where: { id: req.params.id, companyId: req.auth!.companyId },
+      where: { id, companyId: req.auth!.companyId },
     })
 
     if (!existing) {
@@ -80,7 +79,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return
     }
 
-    await prisma.employee.delete({ where: { id: req.params.id } })
+    await prisma.employee.delete({ where: { id } })
     res.json({ success: true })
   } catch {
     res.status(500).json({ error: 'Erreur serveur' })
