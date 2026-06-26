@@ -1,6 +1,7 @@
 import express from 'express'
 import dotenv from 'dotenv'
 import helmet from 'helmet'
+import cors from 'cors'
 import rateLimit from 'express-rate-limit'
 import authRoutes from './routes/auth'
 import employeeRoutes from './routes/employees'
@@ -10,6 +11,11 @@ dotenv.config()
 const app = express()
 
 app.use(helmet())
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}))
 app.use(express.json())
 
 const authLimiter = rateLimit({
