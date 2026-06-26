@@ -1,10 +1,11 @@
 import express from 'express'
 import dotenv from 'dotenv'
 import helmet from 'helmet'
-import cors from 'cors'
 import rateLimit from 'express-rate-limit'
+import cors from 'cors'
 import authRoutes from './routes/auth'
 import employeeRoutes from './routes/employees'
+import shiftRoutes from './routes/shifts'
 
 dotenv.config()
 
@@ -30,6 +31,7 @@ app.get('/health', (req, res) => {
 
 app.use('/auth', authLimiter, authRoutes)
 app.use('/employees', employeeRoutes)
+app.use('/shifts', shiftRoutes)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
