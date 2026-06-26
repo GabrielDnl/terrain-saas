@@ -82,42 +82,45 @@ router.post('/', async (req: Request, res: Response) => {
 })
 
 router.get('/', async (req: Request, res: Response) => {
-  const { week } = req.query
+  const { week, startDate, endDate } = req.query
 
   try {
-    let startOfWeek: Date
-    let endOfWeek: Date
+    let start: Date
+    let end: Date
 
-    if (week && typeof week === 'string') {
+    if (startDate && endDate) {
+      start = new Date(String(startDate))
+      end = new Date(String(endDate))
+    } else if (week && typeof week === 'string') {
       const match = week.match(/^(\d{4})-W(\d{2})$/)
       if (!match) {
-        res.status(400).json({ error: 'Format semaine invalide. Utilise YYYY-WXX' })
+        res.status(400).json({ error: 'Format invalide. Utilise YYYY-WXX ou startDate/endDate' })
         return
       }
       const year = parseInt(match[1])
       const weekNum = parseInt(match[2])
-      const jan4 = new Date(year, 0, 4)
-      const startOfYear = new Date(jan4)
-      startOfYear.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7))
-      startOfWeek = new Date(startOfYear)
-      startOfWeek.setDate(startOfYear.getDate() + (weekNum - 1) * 7)
-      endOfWeek = new Date(startOfWeek)
-      endOfWeek.setDate(startOfWeek.getDate() + 7)
+      const simple = new Date(year, 0, 1 + (weekNum - 1) * 7)
+      const dow = simple.getDay()
+      const monday = new Date(simple)
+      monday.setDate(simple.getDate() - (dow <= 4 ? dow - 1 : dow - 8))
+      monday.setHours(0, 0, 0, 0)
+      start = monday
+      end = new Date(monday)
+      end.setDate(monday.getDate() + 7)
     } else {
       const now = new Date()
-      const day = now.getDay()
-      const diff = (day === 0 ? -6 : 1 - day)
-      startOfWeek = new Date(now)
-      startOfWeek.setDate(now.getDate() + diff)
-      startOfWeek.setHours(0, 0, 0, 0)
-      endOfWeek = new Date(startOfWeek)
-      endOfWeek.setDate(startOfWeek.getDate() + 7)
+      const dow = now.getDay()
+      start = new Date(now)
+      start.setDate(now.getDate() - (dow <= 4 ? dow - 1 : dow - 8))
+      start.setHours(0, 0, 0, 0)
+      end = new Date(start)
+      end.setDate(start.getDate() + 7)
     }
 
     const shifts = await prisma.shift.findMany({
       where: {
         companyId: req.auth!.companyId,
-        startTime: { gte: startOfWeek, lt: endOfWeek },
+        startTime: { gte: start, lt: end },
       },
       include: { employee: true },
       orderBy: { startTime: 'asc' },
