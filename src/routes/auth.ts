@@ -1,20 +1,33 @@
 import { Router, Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 
 const router = Router()
 
-// POST /auth/register — crée une Company + son premier User dirigeant
+const registerSchema = z.object({
+  companyName: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().min(8),
+  name: z.string().min(2),
+})
+
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+})
+
 router.post('/register', async (req: Request, res: Response) => {
+  const parsed = registerSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() })
+    return
+  }
+
+  const { companyName, email, password, name } = parsed.data
+
   try {
-    const { companyName, email, password, name } = req.body
-
-    if (!companyName || !email || !password || !name) {
-      res.status(400).json({ error: 'Tous les champs sont requis' })
-      return
-    }
-
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) {
       res.status(409).json({ error: 'Email déjà utilisé' })
@@ -57,16 +70,16 @@ router.post('/register', async (req: Request, res: Response) => {
   }
 })
 
-// POST /auth/login
 router.post('/login', async (req: Request, res: Response) => {
+  const parsed = loginSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() })
+    return
+  }
+
+  const { email, password } = parsed.data
+
   try {
-    const { email, password } = req.body
-
-    if (!email || !password) {
-      res.status(400).json({ error: 'Email et mot de passe requis' })
-      return
-    }
-
     const user = await prisma.user.findUnique({
       where: { email },
       include: { company: true },
