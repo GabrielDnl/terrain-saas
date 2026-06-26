@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id        String     @id @default(uuid())
+  name      String
+  createdAt DateTime   @default(now())
+  users     User[]
+  employees Employee[]
+  shifts    Shift[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(MANAGER)
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Employee {
+  id            String    @id @default(uuid())
+  name          String
+  phone         String?
+  contractHours Float     @default(151)
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id])
+  shifts        Shift[]
+  timelogs      Timelog[]
+  createdAt     DateTime  @default(now())
+}
+
+model Shift {
+  id         String   @id @default(uuid())
+  startTime  DateTime
+  endTime    DateTime
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
+  site       String?
+  createdAt  DateTime @default(now())
+}
+
+model Timelog {
+  id         String        @id @default(uuid())
+  employeeId String
+  employee   Employee      @relation(fields: [employeeId], references: [id])
+  clockIn    DateTime?
+  clockOut   DateTime?
+  lat        Float?
+  lng        Float?
+  status     TimelogStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+}
+
+enum Role {
+  MANAGER
+  ADMIN
+}
+
+enum TimelogStatus {
+  PENDING
+  VALIDATED
+  DISPUTED
+}
