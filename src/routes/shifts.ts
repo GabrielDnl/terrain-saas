@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/requireAuth'
+import { sendSMS } from '../lib/sms'
 
 const router = Router()
 router.use(requireAuth)
@@ -82,7 +83,7 @@ router.post('/', async (req: Request, res: Response) => {
 })
 
 router.get('/', async (req: Request, res: Response) => {
-  const { week, startDate, endDate } = req.query
+  const { startDate, endDate } = req.query
 
   try {
     let start: Date
@@ -91,22 +92,6 @@ router.get('/', async (req: Request, res: Response) => {
     if (startDate && endDate) {
       start = new Date(String(startDate))
       end = new Date(String(endDate))
-    } else if (week && typeof week === 'string') {
-      const match = week.match(/^(\d{4})-W(\d{2})$/)
-      if (!match) {
-        res.status(400).json({ error: 'Format invalide. Utilise YYYY-WXX ou startDate/endDate' })
-        return
-      }
-      const year = parseInt(match[1])
-      const weekNum = parseInt(match[2])
-      const simple = new Date(year, 0, 1 + (weekNum - 1) * 7)
-      const dow = simple.getDay()
-      const monday = new Date(simple)
-      monday.setDate(simple.getDate() - (dow <= 4 ? dow - 1 : dow - 8))
-      monday.setHours(0, 0, 0, 0)
-      start = monday
-      end = new Date(monday)
-      end.setDate(monday.getDate() + 7)
     } else {
       const now = new Date()
       const dow = now.getDay()
@@ -198,6 +183,58 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     await prisma.shift.delete({ where: { id } })
     res.json({ success: true })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+router.post('/publish', async (req: Request, res: Response) => {
+  const { startDate, endDate } = req.body
+
+  if (!startDate || !endDate) {
+    res.status(400).json({ error: 'startDate et endDate requis' })
+    return
+  }
+
+  try {
+    const shifts = await prisma.shift.findMany({
+      where: {
+        companyId: req.auth!.companyId,
+        startTime: {
+          gte: new Date(startDate),
+          lt: new Date(endDate),
+        },
+      },
+      include: { employee: true },
+      orderBy: { startTime: 'asc' },
+    })
+
+    const byEmployee = shifts.reduce((acc, shift) => {
+      const id = shift.employeeId
+      if (!acc[id]) acc[id] = { employee: shift.employee, shifts: [] }
+      acc[id].shifts.push(shift)
+      return acc
+    }, {} as Record<string, { employee: any; shifts: typeof shifts }>)
+
+    const results = []
+
+    for (const { employee, shifts: empShifts } of Object.values(byEmployee)) {
+      if (!employee.phone) continue
+
+      const lines = empShifts.map(s => {
+        const start = new Date(s.startTime)
+        const end = new Date(s.endTime)
+        const day = start.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'numeric' })
+        return `${day}: ${start.getUTCHours()}h-${end.getUTCHours()}h${s.site ? ' ' + s.site : ''}`
+      })
+
+      const message = `Bonjour ${employee.name.split(' ')[0]}, votre planning:\n${lines.join('\n')}`
+      const sent = await sendSMS(employee.phone, message)
+      results.push({ employee: employee.name, phone: employee.phone, sent })
+    }
+
+    res.json({ success: true, results })
   } catch (error) {
     console.error(error)
     res.status(500).json({ error: 'Erreur serveur' })
