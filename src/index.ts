@@ -7,6 +7,7 @@ import authRoutes from './routes/auth'
 import employeeRoutes from './routes/employees'
 import shiftRoutes from './routes/shifts'
 import agentRoutes from './routes/agent'
+import timelogRoutes from './routes/timelog'
 
 dotenv.config()
 
@@ -56,6 +57,7 @@ app.use('/auth', authLimiter, authRoutes)
 app.use('/employees', employeeRoutes)
 app.use('/shifts', shiftRoutes)
 app.use('/agent', agentLimiter, agentRoutes)
+app.use('/timelog', timelogRoutes)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
