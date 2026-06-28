@@ -11,7 +11,7 @@ const shiftSchema = z.object({
   employeeId: z.string().uuid(),
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
-  site: z.string().optional(),
+  site: z.string().max(100).optional(),
 })
 
 const hasConflict = async (
@@ -227,7 +227,7 @@ router.post('/publish', async (req: Request, res: Response) => {
         const start = new Date(s.startTime)
         const end = new Date(s.endTime)
         const day = start.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'numeric' })
-        return `${day}: ${start.getUTCHours()}h-${end.getUTCHours()}h${s.site ? ' ' + s.site : ''}`
+        return `${day}: ${start.getHours()}h-${end.getHours()}h${s.site ? ' ' + s.site : ''}`
       })
 
       const message = `Bonjour ${employee.name.split(' ')[0]}, votre planning:\n${lines.join('\n')}\nVoir: ${appUrl}/mon-planning/${employee.accessToken}`

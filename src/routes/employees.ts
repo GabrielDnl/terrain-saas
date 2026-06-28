@@ -1,9 +1,16 @@
 import { Router, Request, Response } from 'express'
+import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/requireAuth'
 
 const router = Router()
 router.use(requireAuth)
+
+const employeeSchema = z.object({
+  name: z.string().min(2).max(100),
+  phone: z.string().max(20).optional(),
+  contractHours: z.number().min(0).max(300).optional(),
+})
 
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -18,14 +25,15 @@ router.get('/', async (req: Request, res: Response) => {
 })
 
 router.post('/', async (req: Request, res: Response) => {
+  const parsed = employeeSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() })
+    return
+  }
+
+  const { name, phone, contractHours } = parsed.data
+
   try {
-    const { name, phone, contractHours } = req.body
-
-    if (!name) {
-      res.status(400).json({ error: 'Le nom est requis' })
-      return
-    }
-
     const employee = await prisma.employee.create({
       data: {
         name,
@@ -42,10 +50,15 @@ router.post('/', async (req: Request, res: Response) => {
 })
 
 router.put('/:id', async (req: Request, res: Response) => {
-  try {
-    const { name, phone, contractHours } = req.body
-    const id = String(req.params.id)
+  const parsed = employeeSchema.partial().safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() })
+    return
+  }
 
+  const id = String(req.params.id)
+
+  try {
     const existing = await prisma.employee.findFirst({
       where: { id, companyId: req.auth!.companyId },
     })
@@ -57,7 +70,11 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     const employee = await prisma.employee.update({
       where: { id },
-      data: { name, phone, contractHours },
+      data: {
+        name: parsed.data.name,
+        phone: parsed.data.phone,
+        contractHours: parsed.data.contractHours,
+      },
     })
 
     res.json(employee)
@@ -67,9 +84,9 @@ router.put('/:id', async (req: Request, res: Response) => {
 })
 
 router.delete('/:id', async (req: Request, res: Response) => {
-  try {
-    const id = String(req.params.id)
+  const id = String(req.params.id)
 
+  try {
     const existing = await prisma.employee.findFirst({
       where: { id, companyId: req.auth!.companyId },
     })

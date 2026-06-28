@@ -26,6 +26,20 @@ const authLimiter = rateLimit({
   message: { error: 'Trop de requêtes, réessaie dans 15 minutes' },
 })
 
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: { error: 'Trop de requêtes' },
+})
+
+const agentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { error: 'Trop de requêtes' },
+})
+
+app.use(globalLimiter)
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' })
 })
@@ -33,7 +47,7 @@ app.get('/health', (req, res) => {
 app.use('/auth', authLimiter, authRoutes)
 app.use('/employees', employeeRoutes)
 app.use('/shifts', shiftRoutes)
-app.use('/agent', agentRoutes)
+app.use('/agent', agentLimiter, agentRoutes)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
