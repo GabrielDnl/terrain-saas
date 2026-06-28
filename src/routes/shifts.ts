@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { z } from 'zod'
+import { v4 as uuidv4 } from 'uuid'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/requireAuth'
 import { sendSMS } from '../lib/sms'
@@ -223,6 +224,15 @@ router.post('/publish', async (req: Request, res: Response) => {
     for (const { employee, shifts: empShifts } of Object.values(byEmployee)) {
       if (!employee.phone) continue
 
+      const newToken = uuidv4()
+      const tokenExpiresAt = new Date()
+      tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 7)
+
+      await prisma.employee.update({
+        where: { id: employee.id },
+        data: { accessToken: newToken, tokenExpiresAt },
+      })
+
       const lines = empShifts.map(s => {
         const start = new Date(s.startTime)
         const end = new Date(s.endTime)
@@ -230,7 +240,7 @@ router.post('/publish', async (req: Request, res: Response) => {
         return `${day}: ${start.getHours()}h-${end.getHours()}h${s.site ? ' ' + s.site : ''}`
       })
 
-      const message = `Bonjour ${employee.name.split(' ')[0]}, votre planning:\n${lines.join('\n')}\nVoir: ${appUrl}/mon-planning/${employee.accessToken}`
+      const message = `Bonjour ${employee.name.split(' ')[0]}, votre planning:\n${lines.join('\n')}\nVoir: ${appUrl}/mon-planning/${newToken}`
       const sent = await sendSMS(employee.phone, message)
       results.push({ employee: employee.name, phone: employee.phone, sent })
     }

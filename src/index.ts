@@ -1,4 +1,4 @@
-import express from 'express'
+import express, { Request, Response, NextFunction } from 'express'
 import dotenv from 'dotenv'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
@@ -19,6 +19,14 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }))
 app.use(express.json())
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method !== 'GET' && !req.is('application/json')) {
+    res.status(415).json({ error: 'Content-Type application/json requis' })
+    return
+  }
+  next()
+})
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

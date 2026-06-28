@@ -14,6 +14,11 @@ router.get('/:token', async (req: Request, res: Response) => {
       return
     }
 
+    if (employee.tokenExpiresAt && employee.tokenExpiresAt < new Date()) {
+      res.status(401).json({ error: 'Ce lien a expiré. Demandez un nouveau planning à votre responsable.' })
+      return
+    }
+
     const now = new Date()
     const start = new Date(now)
     start.setDate(now.getDate() - now.getDay() + 1)
@@ -30,9 +35,7 @@ router.get('/:token', async (req: Request, res: Response) => {
     })
 
     res.json({
-      employee: {
-        name: employee.name,
-      },
+      employee: { name: employee.name },
       shifts: shifts.map(s => ({
         id: s.id,
         startTime: s.startTime,

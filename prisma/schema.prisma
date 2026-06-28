@@ -28,16 +28,17 @@ model User {
 }
 
 model Employee {
-  id            String    @id @default(uuid())
-  name          String
-  phone         String?
-  contractHours Float     @default(151)
-  accessToken   String    @unique @default(uuid())
-  companyId     String
-  company       Company   @relation(fields: [companyId], references: [id])
-  shifts        Shift[]
-  timelogs      Timelog[]
-  createdAt     DateTime  @default(now())
+  id              String    @id @default(uuid())
+  name            String
+  phone           String?
+  contractHours   Float     @default(151)
+  accessToken     String    @unique @default(uuid())
+  tokenExpiresAt  DateTime?
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id])
+  shifts          Shift[]
+  timelogs        Timelog[]
+  createdAt       DateTime  @default(now())
 }
 
 model Shift {
