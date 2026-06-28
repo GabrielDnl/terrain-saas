@@ -6,6 +6,7 @@ import cors from 'cors'
 import authRoutes from './routes/auth'
 import employeeRoutes from './routes/employees'
 import shiftRoutes from './routes/shifts'
+import agentRoutes from './routes/agent'
 
 dotenv.config()
 
@@ -32,6 +33,7 @@ app.get('/health', (req, res) => {
 app.use('/auth', authLimiter, authRoutes)
 app.use('/employees', employeeRoutes)
 app.use('/shifts', shiftRoutes)
+app.use('/agent', agentRoutes)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {

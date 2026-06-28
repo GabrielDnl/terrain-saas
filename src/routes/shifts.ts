@@ -218,6 +218,7 @@ router.post('/publish', async (req: Request, res: Response) => {
     }, {} as Record<string, { employee: any; shifts: typeof shifts }>)
 
     const results = []
+    const appUrl = process.env.APP_URL || 'http://localhost:5173'
 
     for (const { employee, shifts: empShifts } of Object.values(byEmployee)) {
       if (!employee.phone) continue
@@ -229,7 +230,7 @@ router.post('/publish', async (req: Request, res: Response) => {
         return `${day}: ${start.getUTCHours()}h-${end.getUTCHours()}h${s.site ? ' ' + s.site : ''}`
       })
 
-      const message = `Bonjour ${employee.name.split(' ')[0]}, votre planning:\n${lines.join('\n')}`
+      const message = `Bonjour ${employee.name.split(' ')[0]}, votre planning:\n${lines.join('\n')}\nVoir: ${appUrl}/mon-planning/${employee.accessToken}`
       const sent = await sendSMS(employee.phone, message)
       results.push({ employee: employee.name, phone: employee.phone, sent })
     }
