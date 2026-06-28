@@ -242,4 +242,53 @@ router.post('/publish', async (req: Request, res: Response) => {
   }
 })
 
+router.post('/copy-week', async (req: Request, res: Response) => {
+  const { sourceStart, sourceEnd, targetStart } = req.body
+
+  if (!sourceStart || !sourceEnd || !targetStart) {
+    res.status(400).json({ error: 'sourceStart, sourceEnd et targetStart requis' })
+    return
+  }
+
+  try {
+    const sourceShifts = await prisma.shift.findMany({
+      where: {
+        companyId: req.auth!.companyId,
+        startTime: {
+          gte: new Date(sourceStart),
+          lt: new Date(sourceEnd),
+        },
+      },
+    })
+
+    if (sourceShifts.length === 0) {
+      res.status(404).json({ error: 'Aucun shift trouvé sur la semaine source' })
+      return
+    }
+
+    const sourceMondayMs = new Date(sourceStart).getTime()
+    const targetMondayMs = new Date(targetStart).getTime()
+    const diffMs = targetMondayMs - sourceMondayMs
+
+    const newShifts = await Promise.all(
+      sourceShifts.map(s =>
+        prisma.shift.create({
+          data: {
+            employeeId: s.employeeId,
+            startTime: new Date(s.startTime.getTime() + diffMs),
+            endTime: new Date(s.endTime.getTime() + diffMs),
+            site: s.site,
+            companyId: req.auth!.companyId,
+          },
+        })
+      )
+    )
+
+    res.status(201).json({ copied: newShifts.length })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 export default router
