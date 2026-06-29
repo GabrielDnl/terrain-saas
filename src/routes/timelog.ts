@@ -115,7 +115,19 @@ router.get('/live', async (req: Request, res: Response) => {
         clockIn: { not: null },
         clockOut: null,
       },
-      include: { employee: true },
+      select: {
+        id: true,
+        clockIn: true,
+        lat: true,
+        lng: true,
+        employee: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+      },
       orderBy: { clockIn: 'asc' },
     })
 
@@ -127,7 +139,6 @@ router.get('/live', async (req: Request, res: Response) => {
 })
 
 router.get('/recap/:month', async (req: Request, res: Response) => {
-  const { month } = req.params
   const match = String(req.params.month).match(/^(\d{4})-(\d{2})$/)
   if (!match) {
     res.status(400).json({ error: 'Format mois invalide. Utilise YYYY-MM' })
@@ -135,13 +146,20 @@ router.get('/recap/:month', async (req: Request, res: Response) => {
   }
 
   const year = parseInt(match[1])
-  const monthNum = parseInt(match[2]) - 1
-  const start = new Date(year, monthNum, 1)
-  const end = new Date(year, monthNum + 1, 1)
+  const monthNum = parseInt(match[2])
+
+  if (year < 2020 || year > 2030 || monthNum < 1 || monthNum > 12) {
+    res.status(400).json({ error: 'Date invalide' })
+    return
+  }
+
+  const start = new Date(year, monthNum - 1, 1)
+  const end = new Date(year, monthNum, 1)
 
   try {
     const employees = await prisma.employee.findMany({
       where: { companyId: req.auth!.companyId },
+      select: { id: true, name: true, contractHours: true },
     })
 
     const timelogs = await prisma.timelog.findMany({
@@ -149,13 +167,24 @@ router.get('/recap/:month', async (req: Request, res: Response) => {
         employee: { companyId: req.auth!.companyId },
         clockIn: { gte: start, lt: end },
       },
-      include: { employee: true },
+      select: {
+        id: true,
+        employeeId: true,
+        clockIn: true,
+        clockOut: true,
+      },
     })
 
     const shifts = await prisma.shift.findMany({
       where: {
         companyId: req.auth!.companyId,
         startTime: { gte: start, lt: end },
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        startTime: true,
+        endTime: true,
       },
     })
 
