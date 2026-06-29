@@ -10,6 +10,8 @@ datasource db {
 model Company {
   id        String     @id @default(uuid())
   name      String
+  isPaid    Boolean    @default(false)
+  stripeCustomerId String?
   createdAt DateTime   @default(now())
   users     User[]
   employees Employee[]

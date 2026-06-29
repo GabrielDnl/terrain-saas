@@ -8,6 +8,7 @@ import employeeRoutes from './routes/employees'
 import shiftRoutes from './routes/shifts'
 import agentRoutes from './routes/agent'
 import timelogRoutes from './routes/timelog'
+import billingRoutes from './routes/billing'
 
 dotenv.config()
 
@@ -19,10 +20,13 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }))
+
+app.post('/billing/webhook', express.raw({ type: 'application/json' }))
+
 app.use(express.json())
 
 app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.method !== 'GET' && !req.is('application/json')) {
+  if (req.method !== 'GET' && req.path !== '/billing/webhook' && !req.is('application/json')) {
     res.status(415).json({ error: 'Content-Type application/json requis' })
     return
   }
@@ -58,6 +62,7 @@ app.use('/employees', employeeRoutes)
 app.use('/shifts', shiftRoutes)
 app.use('/agent', agentLimiter, agentRoutes)
 app.use('/timelog', timelogRoutes)
+app.use('/billing', billingRoutes)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
