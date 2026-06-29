@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import Stripe from 'stripe'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/requireAuth'
+import { sendPaymentConfirmationEmail } from '../lib/email'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -66,13 +67,18 @@ router.post('/webhook', async (req: Request, res: Response) => {
     const companyId = session.metadata?.companyId
 
     if (companyId) {
-      await prisma.company.update({
+      const company = await prisma.company.update({
         where: { id: companyId },
         data: {
           isPaid: true,
           stripeCustomerId: session.customer as string,
         },
+        include: { users: true },
       })
+      const manager = company.users[0]
+      if (manager) {
+        sendPaymentConfirmationEmail(manager.email, manager.name, company.name)
+      }
       console.log(`Company ${companyId} activée après paiement`)
     }
   }

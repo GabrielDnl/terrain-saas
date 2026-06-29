@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
+import { sendWelcomeEmail } from '../lib/email'
 
 const router = Router()
 
@@ -58,6 +59,8 @@ router.post('/register', async (req: Request, res: Response) => {
       process.env.JWT_SECRET!,
       { expiresIn: '7d' }
     )
+
+    sendWelcomeEmail(email, name, companyName)
 
     res.status(201).json({
       token,
