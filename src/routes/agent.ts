@@ -39,6 +39,7 @@ router.get('/:token', async (req: Request, res: Response) => {
         employeeId: employee.id,
         clockIn: { not: null },
         clockOut: null,
+        status: 'PENDING',
       },
     })
 
@@ -80,6 +81,7 @@ router.post('/:token/clockin', async (req: Request, res: Response) => {
         employeeId: employee.id,
         clockIn: { not: null },
         clockOut: null,
+        status: 'PENDING',
       },
     })
     if (existing) {
@@ -99,10 +101,7 @@ router.post('/:token/clockin', async (req: Request, res: Response) => {
       },
     })
 
-    res.status(201).json({
-      id: timelog.id,
-      clockIn: timelog.clockIn,
-    })
+    res.status(201).json({ id: timelog.id, clockIn: timelog.clockIn })
   } catch (error) {
     console.error(error)
     res.status(500).json({ error: 'Erreur serveur' })
@@ -125,6 +124,7 @@ router.post('/:token/clockout', async (req: Request, res: Response) => {
         employeeId: employee.id,
         clockIn: { not: null },
         clockOut: null,
+        status: 'PENDING',
       },
     })
 
@@ -145,6 +145,36 @@ router.post('/:token/clockout', async (req: Request, res: Response) => {
     })
 
     res.json({ id: updated.id, clockOut: updated.clockOut })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+router.post('/:token/absence', async (req: Request, res: Response) => {
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { accessToken: String(req.params.token) },
+    })
+
+    if (!employee) {
+      res.status(404).json({ error: 'Lien invalide' })
+      return
+    }
+
+    const { reason } = req.body
+
+    await prisma.timelog.create({
+      data: {
+        employeeId: employee.id,
+        status: 'DISPUTED',
+        lat: null,
+        lng: null,
+      },
+    })
+
+    console.log(`Absence signalée par ${employee.name} — motif: ${reason || 'Non précisé'}`)
+    res.json({ success: true })
   } catch (error) {
     console.error(error)
     res.status(500).json({ error: 'Erreur serveur' })

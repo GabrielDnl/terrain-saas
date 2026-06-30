@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { sendWelcomeEmail } from '../lib/email'
+import { requireAuth } from '../middleware/requireAuth'
 
 const router = Router()
 
@@ -110,6 +111,41 @@ router.post('/login', async (req: Request, res: Response) => {
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
       company: { id: user.companyId, name: user.company.name },
     })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+router.get('/me', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.auth!.userId },
+      include: { company: true },
+    })
+    if (!user) {
+      res.status(404).json({ error: 'Utilisateur introuvable' })
+      return
+    }
+    res.json({ name: user.name, email: user.email, company: user.company.name })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+router.put('/profile', requireAuth, async (req: Request, res: Response) => {
+  const { name, password } = req.body
+  try {
+    const data: any = {}
+    if (name) data.name = name
+    if (password) data.password = await bcrypt.hash(password, 10)
+
+    const user = await prisma.user.update({
+      where: { id: req.auth!.userId },
+      data,
+    })
+    res.json({ name: user.name, email: user.email })
   } catch (error) {
     console.error(error)
     res.status(500).json({ error: 'Erreur serveur' })
