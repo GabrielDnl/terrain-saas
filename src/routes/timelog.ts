@@ -35,6 +35,7 @@ router.post('/clockin', async (req: Request, res: Response) => {
         employeeId,
         clockIn: { not: null },
         clockOut: null,
+        status: 'PENDING',
       },
     })
     if (existing) {
@@ -83,6 +84,7 @@ router.post('/clockout', async (req: Request, res: Response) => {
         employeeId,
         clockIn: { not: null },
         clockOut: null,
+        status: 'PENDING',
       },
     })
     if (!timelog) {
@@ -114,6 +116,7 @@ router.get('/live', async (req: Request, res: Response) => {
         employee: { companyId: req.auth!.companyId },
         clockIn: { not: null },
         clockOut: null,
+        status: 'PENDING',
       },
       select: {
         id: true,
@@ -131,7 +134,27 @@ router.get('/live', async (req: Request, res: Response) => {
       orderBy: { clockIn: 'asc' },
     })
 
-    res.json(timelogs)
+    const absences = await prisma.timelog.findMany({
+      where: {
+        employee: { companyId: req.auth!.companyId },
+        status: 'DISPUTED',
+        createdAt: {
+          gte: new Date(new Date().setHours(0, 0, 0, 0)),
+        },
+      },
+      select: {
+        id: true,
+        createdAt: true,
+        employee: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    })
+
+    res.json({ live: timelogs, absences })
   } catch (error) {
     console.error(error)
     res.status(500).json({ error: 'Erreur serveur' })
@@ -165,13 +188,14 @@ router.get('/recap/:month', async (req: Request, res: Response) => {
     const timelogs = await prisma.timelog.findMany({
       where: {
         employee: { companyId: req.auth!.companyId },
-        clockIn: { gte: start, lt: end },
+        createdAt: { gte: start, lt: end },
       },
       select: {
         id: true,
         employeeId: true,
         clockIn: true,
         clockOut: true,
+        status: true,
       },
     })
 
@@ -189,7 +213,8 @@ router.get('/recap/:month', async (req: Request, res: Response) => {
     })
 
     const recap = employees.map(emp => {
-      const empTimelogs = timelogs.filter(t => t.employeeId === emp.id && t.clockOut)
+      const empTimelogs = timelogs.filter(t => t.employeeId === emp.id && t.clockOut && t.status !== 'DISPUTED')
+      const empAbsences = timelogs.filter(t => t.employeeId === emp.id && t.status === 'DISPUTED')
       const empShifts = shifts.filter(s => s.employeeId === emp.id)
 
       const workedMinutes = empTimelogs.reduce((acc, t) => {
@@ -206,7 +231,7 @@ router.get('/recap/:month', async (req: Request, res: Response) => {
         workedHours: Math.round(workedMinutes / 60 * 10) / 10,
         plannedHours: Math.round(plannedMinutes / 60 * 10) / 10,
         contractHours: emp.contractHours,
-        absences: empShifts.length - empTimelogs.length,
+        absences: empAbsences.length + Math.max(0, empShifts.length - empTimelogs.length),
         timelogs: empTimelogs.length,
       }
     })
@@ -245,8 +270,9 @@ router.get('/export/:month', async (req: Request, res: Response) => {
     const timelogs = await prisma.timelog.findMany({
       where: {
         employee: { companyId: req.auth!.companyId },
-        clockIn: { gte: start, lt: end },
+        createdAt: { gte: start, lt: end },
         clockOut: { not: null },
+        status: { not: 'DISPUTED' },
       },
       select: { employeeId: true, clockIn: true, clockOut: true },
     })
