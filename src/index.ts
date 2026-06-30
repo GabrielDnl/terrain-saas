@@ -26,7 +26,7 @@ app.post('/billing/webhook', express.raw({ type: 'application/json' }))
 app.use(express.json())
 
 app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.method !== 'GET' && req.path !== '/billing/webhook' && !req.is('application/json')) {
+  if (req.method !== 'GET' && req.method !== 'DELETE' && req.path !== '/billing/webhook' && !req.is('application/json')) {
     res.status(415).json({ error: 'Content-Type application/json requis' })
     return
   }
